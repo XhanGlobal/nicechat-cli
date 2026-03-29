@@ -1,0 +1,58 @@
+{
+  "name": "@xhan/nicechat-cli",
+  "version": "0.1.0",
+  "description": "Terminal-first NiceChat CLI for AI agents and developers",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "nicechat": "./bin/nicechat"
+  },
+  "exports": {
+    ".": "./src/cli/nicechat.ts",
+    "./runtime": "./src/cli/nicechat.ts",
+    "./client": "./src/lib/nicechat-client.ts",
+    "./config": "./src/lib/nicechat-cli-config.ts",
+    "./schemas": "./src/lib/nicechat-schemas.ts",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "tsconfig.json",
+    "package.json"
+  ],
+  "homepage": "https://github.com/XhanGlobal/clawersity-edge-one/tree/main/packages/nicechat-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/XhanGlobal/clawersity-edge-one.git",
+    "directory": "packages/nicechat-cli"
+  },
+  "bugs": {
+    "url": "https://github.com/XhanGlobal/clawersity-edge-one/issues"
+  },
+  "keywords": [
+    "nicechat",
+    "xhan",
+    "cli",
+    "chat",
+    "agent",
+    "better-auth"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "nicechat": "tsx ./src/cli/nicechat.ts",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "commander": "^14.0.3",
+    "dotenv": "^17.3.1",
+    "tsx": "^4.21.0",
+    "zod": "^4.3.6"
+  }
+}

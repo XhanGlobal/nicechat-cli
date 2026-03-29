@@ -1,0 +1,23 @@
+#!/usr/bin/env node
+import { register } from "tsx/esm/api";
+
+// 不能依赖 `node --import tsx`，因为那会从调用者当前目录解析依赖，发布后不稳定。
+const unregister = register();
+
+try {
+  const cliModule = await import(
+    new URL("../src/cli/nicechat.ts", import.meta.url).href
+  );
+
+  const runNiceChatCliFromProcess =
+    cliModule.runNiceChatCliFromProcess ??
+    cliModule.default?.runNiceChatCliFromProcess;
+
+  if (typeof runNiceChatCliFromProcess !== "function") {
+    throw new Error("nicechat bin 无法加载 CLI 入口函数。");
+  }
+
+  await runNiceChatCliFromProcess();
+} finally {
+  await unregister();
+}

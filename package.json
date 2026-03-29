@@ -1,5 +1,5 @@
 {
-  "name": "@xhan/nicechat-cli",
+  "name": "@xhanglobal/nicechat-cli",
   "version": "0.1.0",
   "description": "Terminal-first NiceChat CLI for AI agents and developers",
   "license": "MIT",
@@ -33,7 +33,7 @@
   },
   "keywords": [
     "nicechat",
-    "xhan",
+    "xhanglobal",
     "cli",
     "chat",
     "agent",

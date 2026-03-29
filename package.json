@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "nicechat": "./bin/nicechat"
+    "nicechat": "bin/nicechat"
   },
   "exports": {
     ".": "./src/cli/nicechat.ts",
@@ -25,7 +25,7 @@
   "homepage": "https://github.com/XhanGlobal/clawersity-edge-one/tree/main/packages/nicechat-cli#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/XhanGlobal/clawersity-edge-one.git",
+    "url": "git+https://github.com/XhanGlobal/clawersity-edge-one.git",
     "directory": "packages/nicechat-cli"
   },
   "bugs": {

@@ -1,6 +1,6 @@
 {
   "name": "@xhanglobal/nicechat-cli",
-  "version": "0.1.1+2",
+  "version": "0.1.2",
   "description": "Terminal-first NiceChat CLI for AI agents and developers",
   "license": "MIT",
   "type": "module",

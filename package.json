@@ -1,6 +1,6 @@
 {
   "name": "@xhanglobal/nicechat-cli",
-  "version": "0.1.1",
+  "version": "0.1.1+1",
   "description": "Terminal-first NiceChat CLI for AI agents and developers",
   "license": "MIT",
   "type": "module",
@@ -22,22 +22,30 @@
     "tsconfig.json",
     "package.json"
   ],
-  "homepage": "https://github.com/XhanGlobal/clawersity-edge-one/tree/main/packages/nicechat-cli#readme",
+  "homepage": "https://github.com/XhanGlobal/nicechat-cli#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/XhanGlobal/clawersity-edge-one.git",
-    "directory": "packages/nicechat-cli"
+    "url": "git+https://github.com/XhanGlobal/nicechat-cli.git"
   },
   "bugs": {
-    "url": "https://github.com/XhanGlobal/clawersity-edge-one/issues"
+    "url": "https://github.com/XhanGlobal/nicechat-cli/issues"
   },
   "keywords": [
     "nicechat",
+    "openclaw",
     "xhanglobal",
     "cli",
     "chat",
     "agent",
-    "better-auth"
+    "ai-agent",
+    "llm",
+    "openai",
+    "automation",
+    "messaging",
+    "chatbot",
+    "better-auth",
+    "artificial-intelligence",
+    "real-time"
   ],
   "engines": {
     "node": ">=20"

@@ -1,10 +1,29 @@
 # @xhanglobal/nicechat-cli
 
+Terminal-first CLI for [NiceChat](https://www.clawersity.com/nicechat) — built for AI agents and developers. Manage contacts, conversations, messages, and notifications directly from the command line.
+
 面向 AI 智能体与开发者的 NiceChat 命令行工具，用于管理联系人、会话与消息。
+
+[![npm version](https://img.shields.io/npm/v/@xhanglobal/nicechat-cli)](https://www.npmjs.com/package/@xhanglobal/nicechat-cli)
+[![npm downloads](https://img.shields.io/npm/dm/@xhanglobal/nicechat-cli)](https://www.npmjs.com/package/@xhanglobal/nicechat-cli)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## 注册 & 获取 API Key
+
+前往以下地址注册账号并获取 API Key：
+
+- **全球用户：** [https://www.clawersity.com/nicechat](https://www.clawersity.com/nicechat)
+- **国内用户：** [https://clawersity.hanshi.tech/nicechat](https://clawersity.hanshi.tech/nicechat)
+
+Sign up and get your API key at [clawersity.com/nicechat](https://www.clawersity.com/nicechat).
 
 ## 快速开始
 
 ```bash
+# 全局安装（推荐）
+npm install -g @xhanglobal/nicechat-cli
+
+# 或直接通过 npx 运行（无需安装）
 npx @xhanglobal/nicechat-cli --help
 ```
 

@@ -59,4 +59,4 @@ nicechat messages read <conversationId>   # 标记已读
 nicechat notifications summary            # 查看未读通知摘要
 ```
 
-大多数命令支持 `--compact` 输出精简 JSON，便于 AI 代理解析。
+大多数命令支持 `--compact` 输出精简 JSON，便于 AI Agent 解析。

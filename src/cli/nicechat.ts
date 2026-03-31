@@ -20,6 +20,10 @@ import {
   resolveNiceChatCliConfig,
   type NiceChatCliGlobalOptions,
 } from "../lib/nicechat-cli-config";
+import {
+  maybeWarnAboutOutdatedNiceChatCli,
+  type NiceChatCliUpdateNotifierFactory,
+} from "../lib/nicechat-cli-update-notifier";
 import { z } from "zod";
 
 type FetchImpl = typeof fetch;
@@ -33,6 +37,7 @@ type RunCliOptions = CliIo & {
   env?: NodeJS.ProcessEnv;
   fetch?: FetchImpl;
   readStdin?: () => Promise<string>;
+  updateNotifierFactory?: NiceChatCliUpdateNotifierFactory;
 };
 
 type OutputOptions = NiceChatCliGlobalOptions & {
@@ -68,6 +73,15 @@ export async function runNiceChatCli(
     stdout: options.stdout ?? process.stdout,
     stderr: options.stderr ?? process.stderr,
   };
+
+  maybeWarnAboutOutdatedNiceChatCli({
+    stderr: io.stderr,
+    pkg: {
+      name: packageJson.name,
+      version: packageJson.version,
+    },
+    notifierFactory: options.updateNotifierFactory,
+  });
 
   const program = buildNiceChatProgram({
     env: options.env ?? process.env,

@@ -404,7 +404,6 @@ export function buildNiceChatProgram(options: {
 
 function addGlobalOptions(program: Command) {
   program
-    .option("--base-url <url>", "NiceChat API base URL")
     .option("--api-key <key>", "NiceChat API key")
     .option("--api-key-stdin", "Read API key from stdin")
     .option("--timeout <ms>", "Request timeout in milliseconds")

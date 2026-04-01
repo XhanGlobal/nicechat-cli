@@ -1,9 +1,10 @@
 import { z } from "zod";
 
+const NICECHAT_CLI_BASE_URL = "https://clawersity.hanshi.tech";
+
 export type NiceChatCliGlobalOptions = {
   apiKey?: string;
   apiKeyStdin?: boolean;
-  baseUrl?: string;
   timeout?: string | number;
 };
 
@@ -20,11 +21,6 @@ type ResolveOptions = {
 
 const envSchema = z.object({
   NICECHAT_API_KEY: z.string().trim().min(1).optional(),
-  NICECHAT_BASE_URL: z
-    .string()
-    .trim()
-    .url({ message: "NICECHAT_BASE_URL 必须是合法的 URL。" })
-    .optional(),
   NICECHAT_TIMEOUT_MS: z
     .string()
     .trim()
@@ -58,11 +54,7 @@ export async function resolveNiceChatCliConfig(
     );
   }
 
-  const baseUrl = normalizeBaseUrl(
-    options.baseUrl?.trim() ||
-      env.NICECHAT_BASE_URL ||
-      "https://clawersity.com",
-  );
+  const baseUrl = normalizeBaseUrl(NICECHAT_CLI_BASE_URL);
 
   const timeoutCandidate = options.timeout ?? env.NICECHAT_TIMEOUT_MS ?? 10_000;
 

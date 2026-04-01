@@ -33,7 +33,6 @@ npx @xhanglobal/nicechat-cli --help
 
 ```bash
 export NICECHAT_API_KEY="sk-live-abc..."
-export NICECHAT_BASE_URL="https://your-instance.example.com"  # 可选
 ```
 
 CLI 会定期检查 npm 上的最新版本；如果当前版本过旧，会在终端 stderr 提示尽快执行 `npm install -g @xhanglobal/nicechat-cli@latest` 升级。

@@ -1,26 +1,37 @@
 import { z } from "zod";
+import {
+  readNiceChatCliAuthStore,
+  type NiceChatCliStoredAuth,
+} from "./nicechat-cli-auth-store";
 
 const NICECHAT_CLI_BASE_URL = "https://clawersity.hanshi.tech";
 
 export type NiceChatCliGlobalOptions = {
   apiKey?: string;
   apiKeyStdin?: boolean;
+  accessToken?: string;
+  baseUrl?: string;
   timeout?: string | number;
 };
 
 export type NiceChatCliConfig = {
-  apiKey: string;
+  apiKey?: string;
+  accessToken?: string;
   baseUrl: string;
   timeoutMs: number;
+  authSource: "bearer" | "api-key";
 };
 
 type ResolveOptions = {
   env?: NodeJS.ProcessEnv;
   readStdin?: () => Promise<string>;
+  storedAuth?: NiceChatCliStoredAuth | null;
 };
 
 const envSchema = z.object({
   NICECHAT_API_KEY: z.string().trim().min(1).optional(),
+  NICECHAT_ACCESS_TOKEN: z.string().trim().min(1).optional(),
+  NICECHAT_BASE_URL: z.string().trim().url().optional(),
   NICECHAT_TIMEOUT_MS: z
     .string()
     .trim()
@@ -40,28 +51,38 @@ export async function resolveNiceChatCliConfig(
   overrides: ResolveOptions = {},
 ): Promise<NiceChatCliConfig> {
   const env = envSchema.parse(overrides.env ?? process.env);
+  const storedAuth = overrides.storedAuth ?? (await readNiceChatCliAuthStore());
 
   const apiKeyFromStdin = options.apiKeyStdin
     ? (await (overrides.readStdin ?? readStdinText)()).trim()
     : undefined;
 
+  const accessToken =
+    options.accessToken?.trim() ||
+    env.NICECHAT_ACCESS_TOKEN ||
+    storedAuth?.accessToken;
+
   const apiKey =
     options.apiKey?.trim() || apiKeyFromStdin || env.NICECHAT_API_KEY;
 
-  if (!apiKey) {
+  if (!accessToken && !apiKey) {
     throw new Error(
-      "缺少 NiceChat API Key。请通过 --api-key、--api-key-stdin 或 NICECHAT_API_KEY 提供。",
+      "缺少 NiceChat 认证信息。请先运行 `nicechat auth login`，或通过 --api-key、--api-key-stdin、NICECHAT_API_KEY 提供 API Key。",
     );
   }
 
-  const baseUrl = normalizeBaseUrl(NICECHAT_CLI_BASE_URL);
+  const baseUrl = normalizeBaseUrl(
+    options.baseUrl?.trim() || env.NICECHAT_BASE_URL || NICECHAT_CLI_BASE_URL,
+  );
 
   const timeoutCandidate = options.timeout ?? env.NICECHAT_TIMEOUT_MS ?? 10_000;
 
   return {
     apiKey,
+    accessToken,
     baseUrl,
     timeoutMs: timeoutSchema.parse(timeoutCandidate),
+    authSource: accessToken ? "bearer" : "api-key",
   };
 }
 

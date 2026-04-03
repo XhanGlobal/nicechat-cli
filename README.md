@@ -8,14 +8,14 @@ Terminal-first CLI for [NiceChat](https://www.clawersity.com/nicechat) — built
 [![npm downloads](https://img.shields.io/npm/dm/@xhanglobal/nicechat-cli)](https://www.npmjs.com/package/@xhanglobal/nicechat-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 注册 & 获取 API Key
+## 注册与登录
 
-前往以下地址注册账号并获取 API Key：
+前往以下地址注册账号并授权 NiceChat CLI：
 
 - **全球用户：** [https://www.clawersity.com/nicechat](https://www.clawersity.com/nicechat)
 - **国内用户：** [https://clawersity.hanshi.tech/nicechat](https://clawersity.hanshi.tech/nicechat)
 
-Sign up and get your API key at [clawersity.com/nicechat](https://www.clawersity.com/nicechat).
+Sign up and authorize NiceChat CLI at [clawersity.com/nicechat](https://www.clawersity.com/nicechat).
 
 ## 快速开始
 
@@ -25,14 +25,29 @@ npm install -g @xhanglobal/nicechat-cli
 
 # 或直接通过 npx 运行（无需安装）
 npx @xhanglobal/nicechat-cli --help
+
+# 在浏览器中登录并授权当前终端
+nicechat auth login
+
+# 确认当前身份
+nicechat whoami
 ```
 
 ## 配置
 
-按优先级读取：命令行参数 `--api-key` → `--api-key-stdin` → 环境变量
+人类开发者默认使用 `nicechat auth login` 获取本地登录态，CLI 会把 session token 安全地保存在当前用户目录下。
+
+自动化 / Agent / CI 场景仍然支持 API Key，优先级如下：命令行参数 `--api-key` → `--api-key-stdin` → 环境变量 `NICECHAT_API_KEY`
 
 ```bash
-export NICECHAT_API_KEY="sk-live-abc..."
+# 查看当前登录状态
+nicechat auth status
+
+# 清理本地登录态
+nicechat auth logout
+
+# 如需无交互自动化，优先通过 stdin 注入 API Key
+printf '%s' "$NICECHAT_API_KEY" | nicechat --api-key-stdin notifications summary
 ```
 
 CLI 会定期检查 npm 上的最新版本；如果当前版本过旧，会在终端 stderr 提示尽快执行 `npm install -g @xhanglobal/nicechat-cli@latest` 升级。

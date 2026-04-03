@@ -24,6 +24,14 @@ import {
   maybeWarnAboutOutdatedNiceChatCli,
   type NiceChatCliUpdateNotifierFactory,
 } from "../lib/nicechat-cli-update-notifier";
+import { createNiceChatCliAuthClient } from "../lib/nicechat-cli-auth-client";
+import {
+  deleteNiceChatCliAuthStore,
+  getNiceChatCliAuthPath,
+  readNiceChatCliAuthStore,
+  type NiceChatCliStoredAuth,
+  writeNiceChatCliAuthStore,
+} from "../lib/nicechat-cli-auth-store";
 import { z } from "zod";
 
 type FetchImpl = typeof fetch;
@@ -37,11 +45,23 @@ type RunCliOptions = CliIo & {
   env?: NodeJS.ProcessEnv;
   fetch?: FetchImpl;
   readStdin?: () => Promise<string>;
+  storedAuth?: NiceChatCliStoredAuth | null;
   updateNotifierFactory?: NiceChatCliUpdateNotifierFactory;
 };
 
 type OutputOptions = NiceChatCliGlobalOptions & {
   compact?: boolean;
+};
+
+type MeResponse = {
+  ok: boolean;
+  user: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    image: string | null;
+  };
+  session: { id: string; expiresAt: string } | null;
 };
 
 const messageTypeChoices: NiceChatMessageType[] = [
@@ -87,6 +107,7 @@ export async function runNiceChatCli(
     env: options.env ?? process.env,
     fetch: options.fetch ?? fetch,
     readStdin: options.readStdin,
+    storedAuth: options.storedAuth,
     io,
   });
 
@@ -125,6 +146,7 @@ export function buildNiceChatProgram(options: {
   env: NodeJS.ProcessEnv;
   fetch: FetchImpl;
   readStdin?: () => Promise<string>;
+  storedAuth?: NiceChatCliStoredAuth | null;
   io: CliIo;
 }) {
   const program = new Command();
@@ -142,6 +164,7 @@ export function buildNiceChatProgram(options: {
     .exitOverride();
 
   addGlobalOptions(program);
+  addAuthCommands(program, options);
 
   const users = program.command("users").description("Search NiceChat users");
   users
@@ -399,6 +422,24 @@ export function buildNiceChatProgram(options: {
       );
     });
 
+  program
+    .command("whoami")
+    .description("Show the current authenticated NiceChat user")
+    .action(async function action(this: Command) {
+      await runWithClient(this, options, async (client) => {
+        const result = await client.getCurrentUser<MeResponse>();
+
+        return {
+          ok: true,
+          user: result.user,
+          auth: {
+            source: "bearer",
+            expiresAt: result.session?.expiresAt ?? null,
+          },
+        };
+      });
+    });
+
   return program;
 }
 
@@ -406,8 +447,258 @@ function addGlobalOptions(program: Command) {
   program
     .option("--api-key <key>", "NiceChat API key")
     .option("--api-key-stdin", "Read API key from stdin")
+    .option(
+      "--access-token <token>",
+      "NiceChat session token for advanced usage",
+    )
+    .option("--base-url <url>", "NiceChat server base URL")
     .option("--timeout <ms>", "Request timeout in milliseconds")
     .option("--compact", "Print single-line JSON output");
+}
+
+function addAuthCommands(
+  program: Command,
+  options: {
+    env: NodeJS.ProcessEnv;
+    fetch: FetchImpl;
+    readStdin?: () => Promise<string>;
+    io: CliIo;
+  },
+) {
+  const auth = program
+    .command("auth")
+    .description("Manage NiceChat CLI authentication");
+
+  auth
+    .command("login")
+    .description("Authenticate this CLI via browser-based device authorization")
+    .action(async function action(this: Command) {
+      const globalOptions = this.optsWithGlobals<NiceChatCliGlobalOptions>();
+      const config = await resolveNiceChatCliConfig(
+        {
+          ...globalOptions,
+          apiKey: globalOptions.apiKey ?? "cli-auth-placeholder",
+        },
+        {
+          env: options.env,
+          readStdin: options.readStdin,
+        },
+      );
+      const client = createNiceChatCliAuthClient({
+        baseUrl: config.baseUrl,
+        fetch: options.fetch,
+      });
+
+      const codeResult = await client.device.code({
+        client_id: "nicechat-cli",
+        scope: "openid profile email",
+      });
+
+      if (codeResult.error || !codeResult.data) {
+        throw new Error(
+          codeResult.error?.error_description ?? "无法发起 NiceChat CLI 登录。",
+        );
+      }
+
+      const {
+        user_code: userCode,
+        device_code: deviceCode,
+        verification_uri: verificationUri,
+        verification_uri_complete: verificationUriComplete,
+        interval = 5,
+      } = codeResult.data;
+
+      writeJson(options.io.stdout, {
+        ok: true,
+        next: {
+          verificationUri,
+          verificationUriComplete,
+          userCode,
+        },
+        message:
+          "请在浏览器中打开 verificationUriComplete（或 verificationUri），确认验证码一致后批准当前终端登录。",
+      });
+
+      const tokenResult = await pollForDeviceAccessToken({
+        client,
+        deviceCode,
+        intervalSeconds: interval,
+      });
+
+      const meClient = new NiceChatClient({
+        baseUrl: config.baseUrl,
+        accessToken: tokenResult.accessToken,
+        timeoutMs: config.timeoutMs,
+        fetch: options.fetch,
+      });
+
+      const me = await meClient.getCurrentUser<MeResponse>();
+
+      await writeNiceChatCliAuthStore({
+        accessToken: tokenResult.accessToken,
+        expiresAt: me.session?.expiresAt ?? null,
+        user: {
+          id: me.user.id,
+          name: me.user.name,
+          email: me.user.email,
+        },
+      });
+
+      writeJson(options.io.stdout, {
+        ok: true,
+        authenticated: true,
+        authPath: getNiceChatCliAuthPath(),
+        user: me.user,
+        auth: {
+          source: "bearer",
+          expiresAt: me.session?.expiresAt ?? null,
+        },
+      });
+    });
+
+  auth
+    .command("status")
+    .description("Show current CLI authentication status")
+    .action(async function action(this: Command) {
+      const globalOptions = this.optsWithGlobals<NiceChatCliGlobalOptions>();
+      const config = await resolveNiceChatCliConfig(
+        {
+          ...globalOptions,
+          apiKey: globalOptions.apiKey ?? "cli-auth-placeholder",
+        },
+        {
+          env: options.env,
+          readStdin: options.readStdin,
+        },
+      );
+      const stored = await readNiceChatCliAuthStore();
+
+      if (!stored?.accessToken) {
+        writeJson(options.io.stdout, {
+          ok: true,
+          authenticated: false,
+          authPath: getNiceChatCliAuthPath(),
+        });
+        return;
+      }
+
+      const client = new NiceChatClient({
+        baseUrl: config.baseUrl,
+        accessToken: stored.accessToken,
+        timeoutMs: config.timeoutMs,
+        fetch: options.fetch,
+      });
+
+      try {
+        const me = await client.getCurrentUser<MeResponse>();
+
+        writeJson(options.io.stdout, {
+          ok: true,
+          authenticated: true,
+          authPath: getNiceChatCliAuthPath(),
+          user: me.user,
+          auth: {
+            source: "bearer",
+            expiresAt: me.session?.expiresAt ?? stored.expiresAt ?? null,
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof NiceChatClientError &&
+          (error.status === 401 || error.code === "NICECHAT_API_ERROR")
+        ) {
+          await deleteNiceChatCliAuthStore();
+          writeJson(options.io.stdout, {
+            ok: true,
+            authenticated: false,
+            authPath: getNiceChatCliAuthPath(),
+            error:
+              "本地登录态已失效，已自动清理。请重新运行 `nicechat auth login`。",
+          });
+          return;
+        }
+
+        throw error;
+      }
+    });
+
+  auth
+    .command("logout")
+    .description("Remove local CLI authentication state")
+    .action(async function action(this: Command) {
+      const globalOptions = this.optsWithGlobals<NiceChatCliGlobalOptions>();
+      const config = await resolveNiceChatCliConfig(
+        {
+          ...globalOptions,
+          apiKey: globalOptions.apiKey ?? "cli-auth-placeholder",
+        },
+        {
+          env: options.env,
+          readStdin: options.readStdin,
+        },
+      );
+      const stored = await readNiceChatCliAuthStore();
+
+      if (stored?.accessToken) {
+        const client = createNiceChatCliAuthClient({
+          baseUrl: config.baseUrl,
+          fetch: options.fetch,
+        });
+
+        await client.signOut({
+          fetchOptions: {
+            headers: {
+              Authorization: `Bearer ${stored.accessToken}`,
+            },
+          },
+        });
+      }
+
+      await deleteNiceChatCliAuthStore();
+
+      writeJson(options.io.stdout, {
+        ok: true,
+        authenticated: false,
+        authPath: getNiceChatCliAuthPath(),
+      });
+    });
+}
+
+async function pollForDeviceAccessToken(options: {
+  client: ReturnType<typeof createNiceChatCliAuthClient>;
+  deviceCode: string;
+  intervalSeconds: number;
+}) {
+  let waitSeconds = options.intervalSeconds;
+
+  while (true) {
+    await sleep(waitSeconds * 1000);
+    const rawResult = await options.client.device.token({
+      grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+      device_code: options.deviceCode,
+      client_id: "nicechat-cli",
+    });
+    const result = rawResult as unknown as {
+      data?: { access_token?: string };
+      error?: { error?: string; error_description?: string };
+    };
+
+    if (result.data?.access_token) {
+      return { accessToken: result.data.access_token };
+    }
+
+    const code = result.error?.error;
+    if (code === "authorization_pending") {
+      continue;
+    }
+
+    if (code === "slow_down") {
+      waitSeconds += 5;
+      continue;
+    }
+
+    throw new Error(result.error?.error_description ?? "CLI 登录失败。");
+  }
 }
 
 async function runWithClient(
@@ -416,6 +707,7 @@ async function runWithClient(
     env: NodeJS.ProcessEnv;
     fetch: FetchImpl;
     readStdin?: () => Promise<string>;
+    storedAuth?: NiceChatCliStoredAuth | null;
     io: CliIo;
   },
   callback: (client: NiceChatClient) => Promise<unknown>,
@@ -424,10 +716,12 @@ async function runWithClient(
   const config = await resolveNiceChatCliConfig(globalOptions, {
     env: options.env,
     readStdin: options.readStdin,
+    storedAuth: options.storedAuth,
   });
 
   const client = new NiceChatClient({
     apiKey: config.apiKey,
+    accessToken: config.accessToken,
     baseUrl: config.baseUrl,
     timeoutMs: config.timeoutMs,
     fetch: options.fetch,
@@ -474,6 +768,10 @@ function formatCliError(error: unknown) {
     error: error instanceof Error ? error.message : "CLI 执行失败。",
     code: "CLI_RUNTIME_ERROR",
   };
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 const isMainModule =

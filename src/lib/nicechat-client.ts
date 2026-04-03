@@ -46,7 +46,8 @@ export class NiceChatClientError extends Error {
 
 export type NiceChatClientOptions = {
   baseUrl: string;
-  apiKey: string;
+  apiKey?: string;
+  accessToken?: string;
   timeoutMs?: number;
   fetch?: FetchImpl;
   userAgent?: string;
@@ -64,7 +65,8 @@ export type NiceChatPresenceStatus = z.infer<
 // 这样既能复用 schema，又不会把 Next.js route handler 强耦合到终端环境。
 export class NiceChatClient {
   private readonly baseUrl: string;
-  private readonly apiKey: string;
+  private readonly apiKey?: string;
+  private readonly accessToken?: string;
   private readonly timeoutMs: number;
   private readonly fetchImpl: FetchImpl;
   private readonly userAgent: string;
@@ -72,9 +74,14 @@ export class NiceChatClient {
   constructor(options: NiceChatClientOptions) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl);
     this.apiKey = options.apiKey;
+    this.accessToken = options.accessToken;
     this.timeoutMs = options.timeoutMs ?? 10_000;
     this.fetchImpl = options.fetch ?? fetch;
     this.userAgent = options.userAgent ?? "nicechat-cli/0.1.0";
+  }
+
+  getCurrentUser<T = unknown>() {
+    return this.requestJson<T>("GET", "/api/nicechat/me");
   }
 
   searchUsers(params: z.input<typeof userSearchQuerySchema>) {
@@ -219,7 +226,10 @@ export class NiceChatClient {
       const response = await this.fetchImpl(url, {
         method,
         headers: buildHeaders(
-          this.apiKey,
+          {
+            apiKey: this.apiKey,
+            accessToken: this.accessToken,
+          },
           Boolean(options.body),
           this.userAgent,
         ),
@@ -279,12 +289,25 @@ export class NiceChatClient {
   }
 }
 
-function buildHeaders(apiKey: string, hasBody: boolean, userAgent: string) {
+function buildHeaders(
+  auth: { apiKey?: string; accessToken?: string },
+  hasBody: boolean,
+  userAgent: string,
+) {
   const headers = new Headers({
     Accept: "application/json",
-    "x-api-key": apiKey,
     "user-agent": userAgent,
   });
+
+  if (auth.accessToken) {
+    headers.set("authorization", `Bearer ${auth.accessToken}`);
+  } else if (auth.apiKey) {
+    headers.set("x-api-key", auth.apiKey);
+  } else {
+    throw new NiceChatClientError("缺少 NiceChat 认证信息。", {
+      code: "MISSING_AUTH",
+    });
+  }
 
   if (hasBody) {
     headers.set("content-type", "application/json");
